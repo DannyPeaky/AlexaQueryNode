@@ -53,10 +53,14 @@ export interface Queue {
   state: string;
 }
 
+interface Cookie {
+  [key: string]: string;
+}
+
 class AlexaQuery {
   BROWSER = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:1.0) bash-script/1.0";
   URL = "https://amazon.co.uk";
-  COOKIE = "";
+  COOKIE: Cookie = {};
   CSRF = "";
   client: AxiosInstance;
   cookiePath = "";
@@ -66,14 +70,14 @@ class AlexaQuery {
     this.cookiePath = path.resolve(homedir(), cookiePath);
     try {
       const cookies = readFileSync(this.cookiePath, "utf-8");
-      if (cookies) this.COOKIE = cookies;
+      if (cookies) this.COOKIE = JSON.parse(cookies);
     } catch (e) {
       console.log("No cookies found");
     }
   }
 
-  async setCookie(cookies: any) {
-    this.COOKIE = cookies
+  async setCookie(userId: string, cookies: any) {
+    this.COOKIE[userId] = cookies
       .map((c: any) => {
         c.Value = (c.Value as string).replace(/^[" ]+/, "").replace(/[" ]$/, "");
         return `${c.Name}=${c.Value}`;
@@ -81,9 +85,9 @@ class AlexaQuery {
       .join("; ");
   }
 
-  async checkStatus() {
+  async checkStatus(userId: string) {
     const response = await this.client.get("https://alexa.amazon.co.uk/api/bootstrap?version=0", {
-      headers: { DNT: "1", "User-Agent": this.BROWSER, Cookie: this.COOKIE },
+      headers: { DNT: "1", "User-Agent": this.BROWSER, Cookie: this.COOKIE[userId] },
     });
     if (response.status === 200) {
       return true;
@@ -91,7 +95,7 @@ class AlexaQuery {
     return false;
   }
 
-  async login(source_token: string) {
+  async login(userId: string, source_token: string) {
     const response = await this.client.post(
       "https://api.amazon.co.uk/ap/exchangetoken/cookies",
       {
@@ -111,7 +115,7 @@ class AlexaQuery {
 
     if (response.status === 200) {
       const cookies = response.data.response.tokens.cookies[".amazon.co.uk"];
-      this.setCookie(cookies);
+      this.setCookie(userId, cookies);
 
       const csrfURLs = [
         "https://alexa.amazon.co.uk/api/language",
@@ -126,13 +130,13 @@ class AlexaQuery {
             DNT: "1",
             Referer: "https://alexa.amazon.co.uk/spa/index.html",
             Origin: "https://alexa.amazon.co.uk",
-            Cookie: this.COOKIE,
+            Cookie: this.COOKIE[userId],
           },
         });
 
         if (response.headers["set-cookie"]?.join("; ").includes("csrf=")) {
           const csrf = response.headers["set-cookie"][0].split(" ")[0];
-          this.COOKIE += `; ${csrf}`;
+          this.COOKIE[userId] += `; ${csrf}`;
           this.CSRF = csrf.split("=")[1];
           csrfcookieexists = true;
           console.log("CSRF Cookie found");
@@ -145,20 +149,20 @@ class AlexaQuery {
         return false;
       }
 
-      await writeFile(this.cookiePath, this.COOKIE);
+      await writeFile(this.cookiePath, JSON.stringify(this.COOKIE));
 
       return true;
     }
     return false;
   }
 
-  async getDevices() {
+  async getDevices(userId: string) {
     const response = await this.client.get("https://alexa.amazon.co.uk/api/devices-v2/device?cached=false", {
       headers: {
         DNT: "1",
         Referer: "https://alexa.amazon.co.uk/spa/index.html",
         Origin: "https://alexa.amazon.co.uk",
-        Cookie: this.COOKIE,
+        Cookie: this.COOKIE[userId],
         csrf: this.CSRF,
       },
     });
@@ -176,7 +180,7 @@ class AlexaQuery {
       .sort((a: any, b: any) => a.accountName.localeCompare(b.accountName)) as Device[];
   }
 
-  async getNotifications() {
+  async getNotifications(userId: string) {
     const response = await this.client.get("https://alexa.amazon.co.uk/api/notifications", {
       headers: {
         DNT: "1",
@@ -184,7 +188,7 @@ class AlexaQuery {
         Referer: "https://alexa.amazon.co.uk/spa/index.html",
         Origin: "https://alexa.amazon.co.uk",
         "Content-Type": "application/json; charset=UTF-8",
-        Cookie: this.COOKIE,
+        Cookie: this.COOKIE[userId],
         csrf: this.CSRF,
       },
     });
@@ -192,7 +196,7 @@ class AlexaQuery {
     return response.data.notifications as Notification[];
   }
 
-  async getQueue(device: Device) {
+  async getQueue(userId: string, device: Device) {
     const URL = `https://alexa.amazon.co.uk/api/np/player?deviceSerialNumber=${device.serialNumber}&deviceType=${device.deviceType}`;
     const response = await this.client.get(URL, {
       headers: {
@@ -201,7 +205,7 @@ class AlexaQuery {
         Referer: "https://alexa.amazon.co.uk/spa/index.html",
         Origin: "https://alexa.amazon.co.uk",
         "Content-Type": "application/json; charset=UTF-8",
-        Cookie: this.COOKIE,
+        Cookie: this.COOKIE[userId],
         csrf: this.CSRF,
       },
     });
