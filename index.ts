@@ -4,14 +4,14 @@ import { writeFile } from "fs/promises";
 import { homedir } from "os";
 import path from "path";
 
-interface Device {
+export interface Device {
   accountName: string;
   deviceType: string;
   serialNumber: string;
   deviceFamily: string;
 }
 
-interface Notification {
+export interface Notification {
   alarmLabel: string;
   alarmTime: number;
   createdDate: number;
@@ -35,7 +35,7 @@ interface Notification {
   type: string;
 }
 
-interface Queue {
+export interface Queue {
   infoText: {
     subText1: string;
     title: string;
