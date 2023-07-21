@@ -71,8 +71,9 @@ class AlexaQuery {
     try {
       const cookies = readFileSync(this.cookiePath, "utf-8");
       if (cookies) this.COOKIE = JSON.parse(cookies);
+      console.log("Cookie file found");
     } catch (e) {
-      console.log("No cookies found");
+      console.log("No cookie file found");
     }
   }
 
@@ -96,6 +97,7 @@ class AlexaQuery {
   }
 
   async login(userId: string, source_token: string) {
+    console.log("Logging in user", userId);
     const response = await this.client.post(
       "https://api.amazon.co.uk/ap/exchangetoken/cookies",
       {
@@ -150,6 +152,7 @@ class AlexaQuery {
       }
 
       await writeFile(this.cookiePath, JSON.stringify(this.COOKIE));
+      console.log("Cookie file saved to", this.cookiePath);
 
       return true;
     }
