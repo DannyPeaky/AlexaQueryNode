@@ -71,7 +71,7 @@ class AlexaQuery {
     try {
       const cookies = readFileSync(this.cookiePath, "utf-8");
       if (cookies) this.COOKIE = JSON.parse(cookies);
-      console.log("Cookie file found");
+      console.log("Cookies found for", Object.keys(this.COOKIE).join(", "));
     } catch (e) {
       console.log("No cookie file found");
     }
